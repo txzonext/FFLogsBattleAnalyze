@@ -1,4 +1,4 @@
-import sys, requests, json, array, time, os, tqdm
+import sys, time, os, json, array, requests, tqdm
 import HiddenChromeDriver
 from statistics import mean
 from bs4 import BeautifulSoup
@@ -7,7 +7,7 @@ import chromedriver_binary
 
 report_id = sys.argv[1]
 
-JOB_SORT_RANK = ['DarkKnight', 'Warrior', 'Gunbreaker', 'Paladin', 'WhiteMage', 'Astrologian', 'Scholar', 'Samurai', 'Monk', 'Dragoon', 'Ninja', 'Bard', 'Machinist', 'Dancer', 'BlackMage', 'Summoner', 'RedMage']
+JOB_SORT_RANK = ['DarkKnight', 'Warrior', 'Gunbreaker', 'Paladin', 'WhiteMage', 'Astrologian', 'Scholar', 'Samurai', 'Monk', 'Dragoon', 'Ninja', 'Bard', 'Machinist', 'Dancer', 'BlackMage', 'Summoner', 'RedMage', 'Total']
 
 FFLOGS_TARGET_ZONE_ID = 887  # The Epic of Alexander
 FFLOGS_TARGET_BOSS_ID = 1050 # The Epic of Alexander
@@ -43,7 +43,7 @@ for phase in fights_data['phases']:
 pbar = tqdm.tqdm(total=len(phases) * len(fights_data['fights']))
 
 fight_times = []
-dps_table = {}
+dps_table = { 'Total': Actor('Total', 'Total', len(phases)) }
 for friendly in fights_data['friendlies']:
 	if friendly['type'] in JOB_SORT_RANK:
 		dps_table[friendly['name']] = Actor(friendly['name'], friendly['type'], len(phases))
@@ -74,6 +74,9 @@ for i in range(1, len(phases) + 1):
 			if name_text in dps_table:
 				dps_text = dps_cell.get_text().replace('\n', '').replace('\t', '').replace(',', '')
 				dps_table[name_text].dps[i - 1] = float(dps_text)
+			
+			total_dps_text = html_table.find('tfoot').find('tr').find_all('td')[3].get_text()
+			dps_table['Total'].dps[i - 1] = float(total_dps_text.replace('\n', '').replace('\t', '').replace(',', ''))
 
 	for fight in fights_data['fights']:
 		pbar.update()
