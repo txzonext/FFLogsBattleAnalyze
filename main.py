@@ -85,12 +85,16 @@ for i in range(1, len(phases) + 1):
 			time.sleep(0.4)
 			html_table = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser').find('table', id='main-table-0')
 			active_time_text = html_table.find('tfoot').find('tr').find_all('td')[2].get_text()
-			active_time = float(active_time_text.replace('s', '').replace('\n', ''))
+			active_time = float(active_time_text.replace('s', '').replace('\n', '').replace(',', ''))
 			if active_time > 0.0:
 				fight_times[i - 1].append(active_time)
 
 pbar.close()
 driver.close()
+
+for name in dps_table.keys():
+	if sum(dps_table[name].dps) == 0:
+		del dps_table[name]
 
 print('###################################')
 print(' Results')
