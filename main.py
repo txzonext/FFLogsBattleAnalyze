@@ -92,7 +92,7 @@ for i in range(1, len(phases) + 1):
 pbar.close()
 driver.close()
 
-for name in dps_table.keys():
+for name in list(dps_table.keys()):
 	if sum(dps_table[name].dps) == 0:
 		del dps_table[name]
 
