@@ -5,8 +5,6 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.chrome.options import Options
 import chromedriver_binary
 
-report_id = sys.argv[1]
-
 # ソート用ジョブ名配列
 JOB_SORT_RANK = ['DarkKnight', 'Warrior', 'Gunbreaker', 'Paladin', 'WhiteMage', 'Astrologian', 'Scholar', 'Samurai', 'Monk', 'Dragoon', 'Ninja', 'Bard', 'Machinist', 'Dancer', 'BlackMage', 'Summoner', 'RedMage', 'Total']
 
@@ -31,6 +29,11 @@ class Actor:
 
 	def __repr__(self):
 		return self.name + ': ' + str(self.dps)
+
+if sys.argv[1].startswith('https://') and 'fflogs.com/reports/' in sys.argv[1]:
+	report_id = sys.argv[1].split('/')[4]
+else:
+	report_id = sys.argv[1]
 
 # FFLogs APIから戦闘情報を取得
 res = requests.get(FFLOGS_API_FIGHT_URL.format(report_id=report_id, api_key=FFLOGS_API_KEY))
