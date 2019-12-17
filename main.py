@@ -114,12 +114,20 @@ for phase in fights_data['phases']:
         intermissions = phase['intermissions']
         break
 
-fight_times = [[] for i in range(len(phases))]
+# 戦闘時間リスト初期化
+fight_times = [[] for p in range(len(phases))]
+
+# 集計対象BOSS IDが設定されている戦闘IDのリストを抽出
+target_fight_ids = [fight.get('id') for fight in fights_data['fights'] if fight.get('boss') == FFLOGS_TARGET_BOSS_ID]
 
 # プレイヤー名を戦闘情報から取得
 dps_table = { 'Total': Actor('Total', 'Total', len(phases)) }
 for friendly in fights_data['friendlies']:
-    if friendly['type'] in JOB_SORT_RANK:
+    # 対象の戦闘に参加しているプレイヤーか?
+    in_target_fight = any([fight.get('id') for fight in friendly['fights'] if fight.get('id') in target_fight_ids])
+
+    # 「対象の戦闘に参加」かつ「集計対象JOB」のプレイヤーをDPSテーブルに追加する
+    if in_target_fight and friendly['type'] in JOB_SORT_RANK:
         dps_table[friendly['name']] = Actor(friendly['name'], friendly['type'], len(phases))
 
 # プログレスバー初期化
