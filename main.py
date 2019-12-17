@@ -31,6 +31,8 @@ FFLOGS_DPS_URL = 'https://www.fflogs.com/reports/{report_id}#boss={boss_id}&diff
 FFLOGS_URL_FIGHT_QUERY = '&fight={fight_id}'
 
 # 引数処理
+# 引数指定なし: 「DISCORD_CHANNEL_ID」で指定したDiscordのテキストチャンネルから
+#               最新のFFLogs BotからのWebhook投稿URLを取得
 if len(sys.argv) <= 1:
     class DiscordClient(discord.Client):
         '''
@@ -73,8 +75,10 @@ if len(sys.argv) <= 1:
     # コールバック用リストからレポートIDを設定
     report_id = callback_data[0]
 
-elif sys.argv[1].startswith('https://') and 'fflogs.com/reports/' in sys.argv[1]:
+# 引数指定あり: FFLogs URL指定の場合
+elif (sys.argv[1].startswith('https://') or sys.argv[1].startswith('http://')) and 'fflogs.com/reports/' in sys.argv[1]:
     report_id = sys.argv[1].split('/')[4]
+# 引数指定あり: その他 ⇒ レポートID直指定
 else:
     report_id = sys.argv[1]
 
@@ -123,15 +127,16 @@ with tqdm.tqdm(total=len(phases) * len(fights_data['fights'])) as pbar:
 
     # Selenium Google Chrome Driver
     with webdriver.Chrome(options=options) as driver:
-        for i in range(1, len(phases) + 1):
-            if i not in intermissions:
-                driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID, phase_num=i))
+        for p in range(1, len(phases) + 1):
+            if p not in intermissions:
+                driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID, phase_num=p))
                 time.sleep(1.0)
                 html_table = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser').find('table', id='main-table-0')
 
                 if html_table is None:
                     continue
 
+                # 
                 for row in html_table.find('tbody').find_all('tr'):
                     name_cell = row.find('td', {'class': 'report-table-name'})
                     dps_cell = row.find('td', {'class': 'primary', 'class': 'main-per-second-amount'})
@@ -142,15 +147,15 @@ with tqdm.tqdm(total=len(phases) * len(fights_data['fights'])) as pbar:
                     name_text = name_cell.get_text().replace('\n', '')
                     if name_text in dps_table:
                         dps_text = dps_cell.get_text().replace('\n', '').replace('\t', '').replace(',', '')
-                        dps_table[name_text].dps[i - 1] = float(dps_text)
+                        dps_table[name_text].dps[p - 1] = float(dps_text)
                     
                     total_dps_text = html_table.find('tfoot').find('tr').find_all('td')[3].get_text()
-                    dps_table['Total'].dps[i - 1] = float(total_dps_text.replace('\n', '').replace('\t', '').replace(',', ''))
+                    dps_table['Total'].dps[p - 1] = float(total_dps_text.replace('\n', '').replace('\t', '').replace(',', ''))
 
             for fight in fights_data['fights']:
                 pbar.update()
                 if fight['zoneID'] == FFLOGS_TARGET_ZONE_ID:
-                    driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID, phase_num=i) + FFLOGS_URL_FIGHT_QUERY.format(fight_id=fight['id']))
+                    driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID, phase_num=p) + FFLOGS_URL_FIGHT_QUERY.format(fight_id=fight['id']))
                     time.sleep(0.4)
                     html_table = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser').find('table', id='main-table-0')
 
@@ -159,12 +164,8 @@ with tqdm.tqdm(total=len(phases) * len(fights_data['fights'])) as pbar:
 
                     active_time_text = html_table.find('tfoot').find('tr').find_all('td')[2].get_text()
                     active_time = float(active_time_text.replace('s', '').replace('\n', '').replace(',', ''))
-                    try:
-                        if active_time > 0.0:
-                            fight_times[i - 1].append(active_time)
-                    except:
-                        print('i={} : {}'.format(i, traceback.format_exc()))
-                        raise
+                    if active_time > 0.0:
+                        fight_times[p - 1].append(active_time)
 
 # DPSテーブルが空のプレイヤーを除外
 for name in list(dps_table.keys()):
@@ -177,11 +178,11 @@ actor_list.sort()
 result_text =  '###################################\n' \
                ' Results\n' \
                '###################################\n'
-for i in range(1, len(phases) + 1):
+for p in range(1, len(phases) + 1):
     for actor in actor_list:
-        result_text += str(actor.dps[i - 1]) + '\t'
-    if len(fight_times[i - 1]) > 0:
-        result_text += str(max(fight_times[i - 1]) ) + '\t' + str(mean(fight_times[i - 1])) + '\n'
+        result_text += str(actor.dps[p - 1]) + '\t'
+    if len(fight_times[p - 1]) > 0:
+        result_text += str(max(fight_times[p - 1]) ) + '\t' + str(mean(fight_times[p - 1])) + '\n'
     else:
         result_text += '\t\n'
 
