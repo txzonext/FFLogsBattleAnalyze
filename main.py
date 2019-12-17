@@ -1,6 +1,7 @@
 import sys
 import time
 import requests
+from urllib.parse import urlparse
 import tqdm
 
 from statistics import mean
@@ -27,8 +28,11 @@ JOB_SORT_RANK = ['DarkKnight', 'Warrior', 'Gunbreaker', 'Paladin', 'WhiteMage', 
 FFLOGS_TARGET_ZONE_ID = 887  # The Epic of Alexander
 FFLOGS_TARGET_BOSS_ID = 1050 # The Epic of Alexander
 FFLOGS_API_FIGHT_URL = 'https://www.fflogs.com/v1/report/fights/{report_id}?api_key={api_key}'
-FFLOGS_DPS_URL = 'https://www.fflogs.com/reports/{report_id}#boss={boss_id}&difficulty=100&type=damage-done&phase={phase_num}'
+FFLOGS_DPS_URL = 'https://www.fflogs.com/reports/{report_id}#boss={boss_id}&difficulty=100'
+FFLOGS_URL_DAMAGE_DONE_AND_PHASE_QUERY = '&type=damage-done&phase={phase_num}'
 FFLOGS_URL_FIGHT_QUERY = '&fight={fight_id}'
+
+client = None
 
 # 引数処理
 # 引数指定なし: 「DISCORD_CHANNEL_ID」で指定したDiscordのテキストチャンネルから
@@ -59,7 +63,7 @@ if len(sys.argv) <= 1:
 
                 if message.embeds[0].url.startswith('https://') and 'fflogs.com/reports/' in message.embeds[0].url:
                     if self.callback is not None:
-                        self.callback(message.embeds[0].url.split('/')[4])
+                        self.callback(urlparse(message.embeds[0].url).path.split('/')[2])
                     break
             await self.close()
 
@@ -69,7 +73,7 @@ if len(sys.argv) <= 1:
         callback_data.append(data)
 
     # Discordに接続
-    client = DiscordClient(callback)
+    client = DiscordClient(callback, loop=asyncio.new_event_loop())
     client.run(DISCORD_TOKEN)
 
     # コールバックが呼び出されていない場合はエラー
@@ -101,6 +105,13 @@ class Actor:
 
     def __repr__(self):
         return self.name + ': ' + str(self.dps)
+
+# 分析処理開始
+print('###################################\n'
+      ' Start analysis.\n'
+      '    Target URL: ' + FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID) + '\n'
+      '###################################\n'
+)
 
 # FFLogs APIから戦闘情報を取得
 res = requests.get(FFLOGS_API_FIGHT_URL.format(report_id=report_id, api_key=FFLOGS_API_KEY))
@@ -141,7 +152,7 @@ with tqdm.tqdm(total=len(phases) * len(fights_data['fights'])) as pbar:
     with webdriver.Chrome(options=options) as driver:
         for p in range(1, len(phases) + 1):
             if p not in intermissions:
-                driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID, phase_num=p))
+                driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID) + FFLOGS_URL_DAMAGE_DONE_AND_PHASE_QUERY.format(phase_num=p))
                 time.sleep(1.0)
                 html_table = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser').find('table', id='main-table-0')
 
@@ -167,7 +178,9 @@ with tqdm.tqdm(total=len(phases) * len(fights_data['fights'])) as pbar:
             for fight in fights_data['fights']:
                 pbar.update()
                 if fight['zoneID'] == FFLOGS_TARGET_ZONE_ID:
-                    driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID, phase_num=p) + FFLOGS_URL_FIGHT_QUERY.format(fight_id=fight['id']))
+                    driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID)
+                                + FFLOGS_URL_DAMAGE_DONE_AND_PHASE_QUERY.format(phase_num=p)
+                                + FFLOGS_URL_FIGHT_QUERY.format(fight_id=fight['id']))
                     time.sleep(0.4)
                     html_table = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser').find('table', id='main-table-0')
 
@@ -187,9 +200,7 @@ for name in list(dps_table.keys()):
 actor_list = list(dps_table.values())
 actor_list.sort()
 
-result_text =  '###################################\n' \
-               ' Results\n' \
-               '###################################\n'
+result_text = ''
 for p in range(1, len(phases) + 1):
     for actor in actor_list:
         result_text += str(actor.dps[p - 1]) + '\t'
@@ -198,4 +209,33 @@ for p in range(1, len(phases) + 1):
     else:
         result_text += '\t\n'
 
-print(result_text)
+if client is None:
+    print('###################################\n'
+          ' Results\n' 
+          '###################################\n'
+    )
+    print(result_text)
+
+else:
+    client = discord.Client(loop=asyncio.new_event_loop())
+    
+    @client.event
+    async def on_ready():
+        if not client.is_ready():
+            return
+        
+        channel = client.get_channel(DISCORD_CHANNEL_ID)
+        embed = discord.Embed(
+                title='Analysis completed.',
+                url=FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID),
+                color=0x7cfc00
+            )
+        embed.add_field(name='Result', value=result_text)
+
+        if not client.is_ready():
+            return
+
+        await channel.send(embed=embed)
+        await client.close()
+
+    client.run(DISCORD_TOKEN)
