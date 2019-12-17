@@ -49,6 +49,10 @@ if len(sys.argv) <= 1:
                 await self.close()
                 raise RuntimeError('Channel ID "{}" is not found.'.format(DISCORD_CHANNEL_ID))
             
+            if channel.type != discord.ChannelType.text:
+                await self.close()
+                raise RuntimeError('Channel ID "{}" is not Text Channel.'.format(DISCORD_CHANNEL_ID))
+
             for message in await channel.history().flatten():
                 if len(message.embeds) <= 0:
                     continue
