@@ -28,7 +28,7 @@ JOB_SORT_RANK = ['DarkKnight', 'Warrior', 'Gunbreaker', 'Paladin', 'WhiteMage', 
 FFLOGS_TARGET_ZONE_ID = 887  # The Epic of Alexander
 FFLOGS_TARGET_BOSS_ID = 1050 # The Epic of Alexander
 FFLOGS_API_FIGHT_URL = 'https://www.fflogs.com/v1/report/fights/{report_id}?api_key={api_key}'
-FFLOGS_DPS_URL = 'https://www.fflogs.com/reports/{report_id}#boss={boss_id}&difficulty=100'
+FFLOGS_DPS_URL = 'https://www.fflogs.com/reports/{report_id}/#boss={boss_id}&difficulty=100'
 FFLOGS_URL_DAMAGE_DONE_AND_PHASE_QUERY = '&type=damage-done&phase={phase_num}'
 FFLOGS_URL_FIGHT_QUERY = '&fight={fight_id}'
 
@@ -51,19 +51,31 @@ if len(sys.argv) <= 1:
             channel = self.get_channel(DISCORD_CHANNEL_ID)
             if channel is None:
                 await self.close()
-                raise RuntimeError('Channel ID "{}" is not found.'.format(DISCORD_CHANNEL_ID))
+                self.callback(RuntimeError('Channel ID "{}" is not found.'.format(DISCORD_CHANNEL_ID)))
+                return
             
             if channel.type != discord.ChannelType.text:
                 await self.close()
-                raise RuntimeError('Channel ID "{}" is not Text Channel.'.format(DISCORD_CHANNEL_ID))
+                self.callback(RuntimeError('Channel ID "{}" is not Text Channel.'.format(DISCORD_CHANNEL_ID)))
+                return
 
+            completed_url = []
             for message in await channel.history().flatten():
                 if len(message.embeds) <= 0:
                     continue
 
-                if message.embeds[0].url.startswith('https://') and 'fflogs.com/reports/' in message.embeds[0].url:
+                url = urlparse(message.embeds[0].url)
+                if url.scheme in ['http', 'https'] and 'fflogs.com' in url.netloc and url.path.startswith('/reports/'):
+                    if message.author == client.user:
+                        completed_url.append(url.path)
+                        continue
+
+                    if url.path in completed_url:
+                        self.callback(RuntimeError('URL: {} has already analyzed.'.format(url.geturl())))
+                        return
+
                     if self.callback is not None:
-                        self.callback(urlparse(message.embeds[0].url).path.split('/')[2])
+                        self.callback(url.path.split('/')[2])
                     break
             await self.close()
 
@@ -80,8 +92,15 @@ if len(sys.argv) <= 1:
     if len(callback_data) == 0:
         raise RuntimeError('Failed to get report ID from Discord.')
 
+    # コールバック用リストに例外が設定されている場合raise
+    elif isinstance(callback_data[0], Exception):
+        raise callback_data[0]
+
     # コールバック用リストからレポートIDを設定
-    report_id = callback_data[0]
+    elif isinstance(callback_data[0], str):
+        report_id = callback_data[0]
+    else:
+        raise RuntimeError('Failed to get report ID from Discord.')
 
 # 引数指定あり: FFLogs URL指定の場合
 elif (sys.argv[1].startswith('https://') or sys.argv[1].startswith('http://')) and 'fflogs.com/reports/' in sys.argv[1]:
