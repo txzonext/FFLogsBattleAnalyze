@@ -11,7 +11,6 @@ from bs4 import BeautifulSoup
 
 import asyncio
 import discord
-import traceback
 
 # FFLogs APIキー
 FFLOGS_API_KEY = ''
