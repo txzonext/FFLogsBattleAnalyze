@@ -1,3 +1,4 @@
+import os
 import sys
 import configparser
 from urllib.parse import urlparse
@@ -8,7 +9,7 @@ import asyncio
 import discord
 
 config = configparser.ConfigParser()
-config.read('settings.ini', encoding='utf-8')
+config.read(os.path.dirname(__file__) + os.sep + 'settings.ini', encoding='utf-8')
 
 client = None
 
@@ -112,7 +113,7 @@ else:
         if not client.is_ready():
             return
         
-        channel = client.get_channel(config.get('DEFAULT', 'DISCORD_CHANNEL_ID'))
+        channel = client.get_channel(int(config.get('DEFAULT', 'DISCORD_CHANNEL_ID')))
         embed = discord.Embed(
                 title='Analysis completed.',
                 url=analyzer.FFLOGS_DPS_URL.format(report_id=report_id, boss_id=analyzer.FFLOGS_TARGET_BOSS_ID),
