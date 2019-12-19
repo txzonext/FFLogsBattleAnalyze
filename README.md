@@ -16,3 +16,8 @@ set the Discord Bot token to `DISCORD_TOKEN` and the channel ID to `DISCORD_CHAN
 ## Execute
 If report URL is *https://www.fflogs.com/reports/abCDeFgHijkLmn/*  
 `python main.py abCDeFgHijkLmn`  
+
+OR
+
+If you setuped Discord Token and Discord server settings,
+just run `python main.py`.

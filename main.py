@@ -13,7 +13,7 @@ config.read('settings.ini', encoding='utf-8')
 client = None
 
 # 引数処理
-# 引数指定なし: 「DISCORD_CHANNEL_ID」で指定したDiscordのテキストチャンネルから
+# 引数指定なし: settings.ini内の DISCORD_CHANNEL_ID で指定したIDのDiscordのテキストチャンネルから
 #               最新のFFLogs BotからのWebhook投稿URLを取得
 if len(sys.argv) <= 1:
     class DiscordClient(discord.Client):
@@ -26,15 +26,15 @@ if len(sys.argv) <= 1:
 
         # 接続完了時の処理
         async def on_ready(self):
-            channel = self.get_channel(config.get('SETTINGS', 'DISCORD_CHANNEL_ID'))
+            channel = self.get_channel(int(config.get('DEFAULT', 'DISCORD_CHANNEL_ID')))
             if channel is None:
                 await self.close()
-                self.callback(RuntimeError('Channel ID "{}" is not found.'.format(config.get('SETTINGS', 'DISCORD_CHANNEL_ID'))))
+                self.callback(RuntimeError('Channel ID "{}" is not found.'.format(config.get('DEFAULT', 'DISCORD_CHANNEL_ID'))))
                 return
             
             if channel.type != discord.ChannelType.text:
                 await self.close()
-                self.callback(RuntimeError('Channel ID "{}" is not Text Channel.'.format(config.get('SETTINGS', 'DISCORD_CHANNEL_ID'))))
+                self.callback(RuntimeError('Channel ID "{}" is not Text Channel.'.format(config.get('DEFAULT', 'DISCORD_CHANNEL_ID'))))
                 return
 
             completed_url = []
@@ -64,7 +64,7 @@ if len(sys.argv) <= 1:
 
     # Discordに接続
     client = DiscordClient(callback, loop=asyncio.new_event_loop())
-    client.run(config.get('SETTINGS', 'DISCORD_TOKEN'))
+    client.run(config.get('DEFAULT', 'DISCORD_TOKEN'))
 
     # コールバックが呼び出されていない場合はエラー
     if len(callback_data) == 0:
@@ -94,8 +94,9 @@ print('###################################\n'
       '###################################\n'
 )
 
-result_text = analyzer.get_analysys_result(config.get('SETTINGS', 'FFLOGS_API_KEY'), report_id)
+result_text = analyzer.get_analysys_result(config.get('DEFAULT', 'FFLOGS_API_KEY'), report_id)
 
+# 分析結果出力
 if client is None:
     print('###################################\n'
           ' Results\n' 
@@ -111,7 +112,7 @@ else:
         if not client.is_ready():
             return
         
-        channel = client.get_channel(config.get('SETTINGS', 'DISCORD_CHANNEL_ID'))
+        channel = client.get_channel(config.get('DEFAULT', 'DISCORD_CHANNEL_ID'))
         embed = discord.Embed(
                 title='Analysis completed.',
                 url=analyzer.FFLOGS_DPS_URL.format(report_id=report_id, boss_id=analyzer.FFLOGS_TARGET_BOSS_ID),
@@ -125,4 +126,4 @@ else:
         await channel.send(embed=embed)
         await client.close()
 
-    client.run(config.get('SETTINGS', 'DISCORD_TOKEN'))
+    client.run(config.get('DEFAULT', 'DISCORD_TOKEN'))
