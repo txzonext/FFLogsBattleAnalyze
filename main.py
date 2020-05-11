@@ -9,7 +9,7 @@ import asyncio
 import discord
 
 config = configparser.ConfigParser()
-config.read(os.path.dirname(__file__) + os.sep + 'settings.ini', encoding='utf-8')
+config.read(os.path.dirname(os.path.abspath(__file__)) + os.sep + 'settings.ini', encoding='utf-8')
 
 client = None
 
