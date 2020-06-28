@@ -7,6 +7,7 @@ import requests
 import tqdm
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import ChromeOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -122,12 +123,25 @@ def get_analysys_result2(api_key: str, report_id: str) -> str:
                             phase_num=p
                         )
                     )
-                    WebDriverWait(driver, 30).until(
-                        EC.presence_of_element_located((By.ID, 'main-table-0')))
-                    time.sleep(1.0)
+                    retry_cnt = 0
+                    complete = False
+                    while (not complete):
+                        try:
+                            WebDriverWait(driver, 20).until(
+                                EC.presence_of_element_located(
+                                    (By.ID, 'main-table-0')
+                                )
+                            )
+                            complete = True
+                        except TimeoutException:
+                            driver.refresh()
+                            retry_cnt += 1
+                            if (retry_cnt >= 5):
+                                raise
+                    time.sleep(0.3)
+
                     html_table = BeautifulSoup(driver.page_source.encode(
                         'utf-8'), 'html.parser').find('table', id='main-table-0')
-                    driver.back()
 
                     if html_table is None:
                         continue
@@ -176,14 +190,27 @@ def get_analysys_result2(api_key: str, report_id: str) -> str:
                             + FFLOGS_URL_FIGHT_QUERY
                             .format(fight_id=fight['id'])
                         )
-                        WebDriverWait(driver, 30).until(
-                            EC.presence_of_element_located((By.ID, 'main-table-0')))
-                        time.sleep(0.5)
+                        retry_cnt = 0
+                        complete = False
+                        while (not complete):
+                            try:
+                                WebDriverWait(driver, 20).until(
+                                    EC.presence_of_element_located(
+                                        (By.ID, 'main-table-0')
+                                    )
+                                )
+                                complete = True
+                            except TimeoutException:
+                                driver.refresh()
+                                retry_cnt += 1
+                                if (retry_cnt >= 5):
+                                    raise
+                        time.sleep(0.3)
+
                         html_table = BeautifulSoup(
                             driver.page_source.encode('utf-8'),
                             'html.parser'
                         ).find('table', id='main-table-0')
-                        driver.back()
 
                         if html_table is None:
                             continue
