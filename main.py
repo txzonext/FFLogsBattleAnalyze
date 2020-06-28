@@ -95,7 +95,7 @@ print('###################################\n'
       '###################################\n'
 )
 
-result_text = analyzer.get_analysys_result(config.get('DEFAULT', 'FFLOGS_API_KEY'), report_id)
+result_text = analyzer.get_analysys_result2(config.get('DEFAULT', 'FFLOGS_API_KEY'), report_id)
 
 # 分析結果出力
 if client is None:

@@ -1,6 +1,7 @@
 import configparser
 import os
 import time
+import datetime
 from statistics import mean
 
 import requests
@@ -47,7 +48,7 @@ class Actor:
     def __repr__(self):
         return self.name + ': ' + str(self.dps)
 
-def get_analysys_result(api_key: str, report_id: str) -> str:
+def get_analysys_result2(api_key: str, report_id: str) -> str:
     '''
     analyze: 対象のレポートを分析する\n
     param report_id: 対象のFFLogs レポートID\n
@@ -93,6 +94,7 @@ def get_analysys_result(api_key: str, report_id: str) -> str:
                 if p not in intermissions:
                     driver.get(FFLOGS_DPS_URL.format(report_id=report_id, boss_id=FFLOGS_TARGET_BOSS_ID) + FFLOGS_URL_DAMAGE_DONE_AND_PHASE_QUERY.format(phase_num=p))
                     WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, 'main-table-0')))
+                    time.sleep(1.0)
                     html_table = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser').find('table', id='main-table-0')
                     driver.back()
 
@@ -122,6 +124,7 @@ def get_analysys_result(api_key: str, report_id: str) -> str:
                                     + FFLOGS_URL_DAMAGE_DONE_AND_PHASE_QUERY.format(phase_num=p)
                                     + FFLOGS_URL_FIGHT_QUERY.format(fight_id=fight['id']))
                         WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, 'main-table-0')))
+                        time.sleep(0.5)
                         html_table = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser').find('table', id='main-table-0')
                         driver.back()
 
@@ -130,7 +133,7 @@ def get_analysys_result(api_key: str, report_id: str) -> str:
 
                         active_time_text = html_table.find('tfoot').find('tr').find_all('td')[2].get_text()
                         active_time = float(active_time_text.replace('s', '').replace('\n', '').replace(',', ''))
-                        if active_time > 0.0:
+                        if active_time >= 0.0:
                             fight_times[p - 1].append(active_time)
 
     # DPSテーブルが空のプレイヤーを除外
@@ -142,12 +145,25 @@ def get_analysys_result(api_key: str, report_id: str) -> str:
     actor_list.sort()
 
     result_text = ''
-    for p in range(1, len(phases) + 1):
-        for actor in actor_list:
-            result_text += str(actor.dps[p - 1]) + '\t'
-        if len(fight_times[p - 1]) > 0:
-            result_text += str(max(fight_times[p - 1]) ) + '\t' + str(mean(fight_times[p - 1])) + '\n'
-        else:
-            result_text += '\t\n'
-    
+    count = 0
+    repo_start = fights_data["start"]
+    alex_start = fights_data["fights"][0]["start_time"]
+    alex_end = fights_data["fights"][len(fights_data["fights"]) - 1]["end_time"]
+    dt1 = datetime.datetime.fromtimestamp((repo_start + alex_start)/1000)
+    dt2 = datetime.datetime.fromtimestamp((repo_start + alex_end)/1000)
+    result_text += "start -->  " + str(dt1) + '\n' + "end   -->  " + str(dt2) + '\n'
+    for ftime in fight_times:
+        count = count + 1
+        result_text += "ph." + str(count) + '\t'
+        for ft in ftime:
+            result_text += str(ft)  + '\t'
+        result_text += '\n'
+#    for p in range(1, len(phases) + 1):
+#        for actor in actor_list:
+#            result_text += str(actor.dps[p - 1]) + '\t'
+#        if len(fight_times[p - 1]) > 0:
+#            result_text += str(max(fight_times[p - 1]) ) + '\t' + str(mean(fight_times[p - 1])) + '\n'
+#        else:
+#            result_text += '\t\n'
+
     return result_text
